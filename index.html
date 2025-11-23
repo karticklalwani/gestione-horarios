@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestión de Horarios</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- iOS soporte -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- CSS generado por Vite -->
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+
+  <body class="bg-slate-900">
+    <div id="root"></div>
+
+    <!-- React App -->
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Registrar Service Worker -->
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js");
+      }
+    </script>
+  </body>
+</html>
