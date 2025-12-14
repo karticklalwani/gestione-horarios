@@ -1,15 +1,47 @@
-import { getUserRole } from "@/app/lib/roles";
+"use client";
 
-useEffect(() => {
-  async function load() {
-    const session = await supabase.auth.getSession();
-    const email = session.data.session?.user.email;
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { Session, User } from "@supabase/supabase-js";
 
-    if (email) {
-      const rol = await getUserRole(email);
-      setUser({ email, rol });
-    }
-  }
+type UserContextType = {
+  user: User | null;
+  loading: boolean;
+};
 
-  load();
-}, []);
+const UserContext = createContext<UserContextType>({
+  user: null,
+  loading: true,
+});
+
+export const UserProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return (
+    <UserContext.Provider value={{ user, loading }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+export const useUser = () => useContext(UserContext);
