@@ -1,57 +1,112 @@
-import { redirect } from "next/navigation";
-import { getUserProfile } from "@/lib/getUserProfile";
+"use client";
 
-export default async function DashboardPage() {
-  const data = await getUserProfile();
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/providers/UserProvider";
+import { supabase } from "@/lib/supabaseClient";
 
-  if (!data) {
-    redirect("/login");
+type Stats = {
+  tiendas: number;
+  empleados: number;
+  ausenciasPendientes: number;
+};
+
+export default function SuperadminDashboard() {
+  const { user, role, loading } = useUser();
+  const router = useRouter();
+
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+
+    // 🔐 No logueado
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    // 🚫 No es superadmin
+    if (role !== "superadmin") {
+      router.push("/");
+      return;
+    }
+
+    // 📊 Cargar estadísticas
+    const loadStats = async () => {
+      try {
+        const [{ count: tiendas }, { count: empleados }, { count: ausencias }] =
+          await Promise.all([
+            supabase.from("tiendas").select("*", { count: "exact", head: true }),
+            supabase
+              .from("empleados")
+              .select("*", { count: "exact", head: true }),
+            supabase
+              .from("ausencias")
+              .select("*", {
+                count: "exact",
+                head: true,
+              })
+              .eq("estado", "pendiente"),
+          ]);
+
+        setStats({
+          tiendas: tiendas ?? 0,
+          empleados: empleados ?? 0,
+          ausenciasPendientes: ausencias ?? 0,
+        });
+      } catch (err) {
+        setError("Error cargando estadísticas");
+      }
+    };
+
+    loadStats();
+  }, [user, role, loading, router]);
+
+  if (loading || !stats) {
+    return <p style={{ padding: 24 }}>Cargando dashboard...</p>;
   }
 
-  const { user, profile } = data;
-
-  if (!profile) {
-    return <p>Error: perfil no encontrado</p>;
+  if (error) {
+    return <p style={{ padding: 24, color: "red" }}>{error}</p>;
   }
 
   return (
     <main style={{ padding: 24 }}>
-      <h1>Dashboard</h1>
+      <h1>Dashboard Superadmin</h1>
+      <p>Bienvenido, {user?.email}</p>
 
-      <p>
-        Bienvenido <strong>{profile.nombre}</strong>
-      </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 16,
+          marginTop: 24,
+        }}
+      >
+        <div style={cardStyle}>
+          <h3>Tiendas</h3>
+          <strong>{stats.tiendas}</strong>
+        </div>
 
-      <p>Rol: {profile.rol}</p>
-      <p>Tienda: {profile.tienda}</p>
+        <div style={cardStyle}>
+          <h3>Empleados</h3>
+          <strong>{stats.empleados}</strong>
+        </div>
 
-      <hr />
-
-      {profile.rol === "superadmin" && (
-        <section>
-          <h2>Panel Superadmin</h2>
-          <ul>
-            <li>Gestionar tiendas</li>
-            <li>Gestionar empleados</li>
-            <li>Ver ausencias</li>
-          </ul>
-        </section>
-      )}
-
-      {profile.rol === "admin" && (
-        <section>
-          <h2>Panel Administrador</h2>
-          <p>Gestión de tu tienda</p>
-        </section>
-      )}
-
-      {profile.rol === "empleado" && (
-        <section>
-          <h2>Panel Empleado</h2>
-          <p>Ver mi horario</p>
-          <p>Solicitar ausencia</p>
-        </section>
-      )}
+        <div style={cardStyle}>
+          <h3>Ausencias pendientes</h3>
+          <strong>{stats.ausenciasPendientes}</strong>
+        </div>
+      </div>
     </main>
   );
 }
+
+const cardStyle: React.CSSProperties = {
+  padding: 16,
+  borderRadius: 8,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+};
