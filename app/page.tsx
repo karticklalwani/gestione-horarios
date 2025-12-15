@@ -1,40 +1,29 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+"use client";
 
-export default async function HomePage() {
-  const cookieStore = cookies();
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/providers/UserProvider";
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        detectSessionInUrl: false,
-        storage: {
-          getItem: (key) => cookieStore.get(key)?.value ?? null,
-          setItem: () => {},
-          removeItem: () => {},
-        },
-      },
+export default function HomePage() {
+  const { user, role, loading } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.push("/login");
+      return;
     }
-  );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    if (role === "superadmin") {
+      router.push("/dashboard");
+    } else if (role === "admin") {
+      router.push("/tienda");
+    } else if (role === "empleado") {
+      router.push("/mis-horarios");
+    }
+  }, [user, role, loading, router]);
 
-  // 🔐 Si NO hay sesión → login
-  if (!user) {
-    redirect("/login");
-  }
-
-  // ✅ Si hay sesión → dashboard
-  return (
-    <main style={{ padding: 24 }}>
-      <h1>Dashboard</h1>
-      <p>Bienvenido, {user.email}</p>
-    </main>
-  );
+  return <p>Cargando...</p>;
 }
